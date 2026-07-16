@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WPMIS | Wajir County</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <main id="loginScreen" class="login-screen">
+    <section class="login-panel">
+      <div>
+        <p class="eyebrow">Wajir County Water Department</p>
+        <h1>Water Point Management Information System</h1>
+        <p class="login-copy">Monitor boreholes, wells, breakdowns, repair assignments, and field status updates from one operational dashboard.</p>
+      </div>
+      <section class="auth-card">
+        <div class="auth-tabs" aria-label="Authentication options">
+          <button id="showLogin" class="active" type="button">Sign in</button>
+          <button id="showSignup" type="button">Create account</button>
+        </div>
+
+        <form id="loginForm" class="form-grid auth-form" autocomplete="on">
+          <label>
+            Email
+            <input id="loginEmail" type="email" value="admin@wajir.go.ke" required>
+          </label>
+          <label>
+            Password
+            <input id="loginPassword" type="password" value="password" required>
+          </label>
+          <button type="submit">Sign in</button>
+          <p class="hint">Admin: admin@wajir.go.ke / password<br>Field Officer: officer@wajir.go.ke / password</p>
+        </form>
+
+        <form id="signupForm" class="form-grid auth-form hidden" autocomplete="on">
+          <label>
+            Full Name
+            <input id="signupName" type="text" placeholder="e.g. Yusuf Rashid" required>
+          </label>
+          <label>
+            Work Email
+            <input id="signupEmail" type="email" placeholder="name@wajir.go.ke" required>
+          </label>
+          <label>
+            Account Role
+            <select id="signupRole" required>
+              <option value="admin">Admin</option>
+              <option value="field_officer">Field Officer</option>
+            </select>
+          </label>
+          <label>
+            Password
+            <input id="signupPassword" type="password" minlength="6" required>
+          </label>
+          <label>
+            Confirm Password
+            <input id="signupConfirmPassword" type="password" minlength="6" required>
+          </label>
+          <button type="submit">Create Account</button>
+          <p class="hint">Choose Admin for full project access, or Field Officer for normal operational access.</p>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div>
+        <p class="eyebrow">WPMIS</p>
+        <h2>Wajir Water Points</h2>
+      </div>
+      <nav aria-label="Main navigation">
+        <button class="nav-link active" data-view="dashboard">Dashboard</button>
+        <button class="nav-link" data-view="waterpoints">Water Points</button>
+        <button class="nav-link" data-view="maintenance">Maintenance</button>
+        <button class="nav-link" data-view="map">Map</button>
+        <button class="nav-link" data-view="reports">Reports</button>
+        <button id="usersNav" class="nav-link" data-view="users">Users</button>
+      </nav>
+      <button id="logoutButton" class="ghost-button">Logout</button>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div>
+          <p id="roleLabel" class="eyebrow"></p>
+          <h1 id="viewTitle">Dashboard</h1>
+        </div>
+        <div class="toolbar">
+          <input id="globalSearch" type="search" placeholder="Search water points">
+          <button id="resetDemoData" class="secondary-button">Reset demo data</button>
+        </div>
+      </header>
+
+      <section id="dashboardView" class="view active-view">
+        <div class="metrics-grid" id="metricsGrid"></div>
+        <div class="content-grid">
+          <section class="panel wide-panel">
+            <div class="panel-heading">
+              <h2>Recent Water Points</h2>
+              <button class="secondary-button" data-action="open-waterpoint-form">Add Water Point</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Sub-county</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Installed</th>
+                  </tr>
+                </thead>
+                <tbody id="recentWaterpoints"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Pending Repairs</h2>
+            </div>
+            <div id="pendingRepairs" class="stack-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="waterpointsView" class="view">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Water Point Register</h2>
+            <button class="secondary-button" data-action="open-waterpoint-form">Add Water Point</button>
+          </div>
+          <div class="filters-row">
+            <select id="statusFilter">
+              <option value="">All statuses</option>
+              <option value="functional">Functional</option>
+              <option value="non_functional">Non-Functional</option>
+              <option value="under_repair">Under Repair</option>
+            </select>
+            <select id="typeFilter">
+              <option value="">All types</option>
+              <option value="borehole">Borehole</option>
+              <option value="hand_dug_well">Hand-dug well</option>
+              <option value="water_pan">Water pan</option>
+              <option value="pipeline_kiosk">Pipeline kiosk</option>
+            </select>
+            <select id="subCountyFilter">
+              <option value="">All sub-counties</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Sub-area</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>GPS</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="waterpointsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="maintenanceView" class="view">
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Log Breakdown</h2>
+            </div>
+            <form id="breakdownForm" class="form-grid">
+              <label>
+                Water Point
+                <select id="breakdownWaterPoint" required></select>
+              </label>
+              <label>
+                Fault Type
+                <select id="faultType" required>
+                  <option value="Pump failure">Pump failure</option>
+                  <option value="Low yield">Low yield</option>
+                  <option value="Contamination concern">Contamination concern</option>
+                  <option value="Structural damage">Structural damage</option>
+                  <option value="Power issue">Power issue</option>
+                </select>
+              </label>
+              <label>
+                Priority
+                <select id="priority" required>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </label>
+              <label>
+                Assign To
+                <select id="assignedTo" required></select>
+              </label>
+              <label class="full-span">
+                Description
+                <textarea id="faultDescription" rows="4" required></textarea>
+              </label>
+              <button type="submit">Create Maintenance Ticket</button>
+            </form>
+          </section>
+          <section class="panel wide-panel">
+            <div class="panel-heading">
+              <h2>Maintenance Tickets</h2>
+            </div>
+            <div id="ticketsList" class="ticket-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="mapView" class="view">
+        <section class="panel map-panel">
+          <div class="panel-heading">
+            <h2>Geo-visualisation</h2>
+            <div class="segmented" id="mapFilters">
+              <button class="active" data-status="">All</button>
+              <button data-status="functional">Functional</button>
+              <button data-status="non_functional">Non-Functional</button>
+              <button data-status="under_repair">Under Repair</button>
+            </div>
+          </div>
+          <div id="map"></div>
+        </section>
+      </section>
+
+      <section id="reportsView" class="view">
+        <div class="content-grid">
+          <section class="panel">
+            <h2>Status Summary</h2>
+            <div id="statusReport" class="report-list"></div>
+          </section>
+          <section class="panel">
+            <h2>Maintenance KPIs</h2>
+            <div id="maintenanceReport" class="report-list"></div>
+          </section>
+          <section class="panel wide-panel">
+            <h2>Water Points by Sub-county</h2>
+            <div id="subCountyReport" class="bar-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="usersView" class="view">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>System Users</h2>
+            <span class="hint">Admin-only view</span>
+          </div>
+          <div id="usersList" class="stack-list"></div>
+        </section>
+      </section>
+    </section>
+  </div>
+
+  <dialog id="waterpointDialog">
+    <form id="waterpointForm" method="dialog" class="dialog-form">
+      <div class="panel-heading">
+        <h2 id="waterpointFormTitle">Add Water Point</h2>
+        <button type="button" class="icon-button" data-action="close-dialog" aria-label="Close">x</button>
+      </div>
+      <input id="waterpointId" type="hidden">
+      <div class="form-grid two-columns">
+        <label>
+          Name
+          <input id="waterpointName" type="text" required>
+        </label>
+        <label>
+          Type
+          <select id="waterpointType" required>
+            <option value="borehole">Borehole</option>
+            <option value="hand_dug_well">Hand-dug well</option>
+            <option value="water_pan">Water pan</option>
+            <option value="pipeline_kiosk">Pipeline kiosk</option>
+          </select>
+        </label>
+        <label>
+          Sub-county
+          <input id="subCounty" type="text" required>
+        </label>
+        <label>
+          Ward / Sub-area
+          <input id="ward" type="text" required>
+        </label>
+        <label>
+          Latitude
+          <input id="latitude" type="number" min="-90" max="90" step="0.000001" required>
+        </label>
+        <label>
+          Longitude
+          <input id="longitude" type="number" min="-180" max="180" step="0.000001" required>
+        </label>
+        <label>
+          Year Installed
+          <input id="yearInstalled" type="number" min="1960" max="2026" required>
+        </label>
+        <label>
+          Status
+          <select id="waterpointStatus" required>
+            <option value="functional">Functional</option>
+            <option value="non_functional">Non-Functional</option>
+            <option value="under_repair">Under Repair</option>
+          </select>
+        </label>
+        <label class="full-span">
+          Notes
+          <textarea id="notes" rows="3"></textarea>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" data-action="close-dialog">Cancel</button>
+        <button type="submit">Save Water Point</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
