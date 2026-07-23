@@ -31,6 +31,7 @@
             Password
             <input id="loginPassword" type="password" value="password" required>
           </label>
+          <p id="loginError" class="form-error hidden" role="alert"></p>
           <button type="submit">Sign in</button>
           <p class="hint">Admin: admin@wajir.go.ke / password<br>Field Officer: officer@wajir.go.ke / password</p>
         </form>
@@ -49,6 +50,7 @@
             <select id="signupRole" required>
               <option value="admin">Admin</option>
               <option value="field_officer">Field Officer</option>
+              <option value="technician">Technician</option>
             </select>
           </label>
           <label>
@@ -59,8 +61,9 @@
             Confirm Password
             <input id="signupConfirmPassword" type="password" minlength="6" required>
           </label>
+          <p id="signupError" class="form-error hidden" role="alert"></p>
           <button type="submit">Create Account</button>
-          <p class="hint">Choose Admin for full project access, or Field Officer for normal operational access.</p>
+          <p class="hint">Choose Admin for full project access, Field Officer for normal operational access, or Technician for repair-crew accounts.</p>
         </form>
       </section>
     </section>
@@ -70,7 +73,7 @@
     <aside class="sidebar">
       <div>
         <p class="eyebrow">WPMIS</p>
-        <h2>Wajir Water Points</h2>
+        <h2>Water Points</h2>
       </div>
       <nav aria-label="Main navigation">
         <button class="nav-link active" data-view="dashboard">Dashboard</button>
@@ -245,8 +248,15 @@
             <div id="maintenanceReport" class="report-list"></div>
           </section>
           <section class="panel wide-panel">
-            <h2>Water Points by Sub-county</h2>
+            <div class="panel-heading">
+              <h2>Water Points by Sub-county</h2>
+              <button class="secondary-button" id="exportReport">Export CSV</button>
+            </div>
             <div id="subCountyReport" class="bar-list"></div>
+          </section>
+          <section class="panel">
+            <h2>Water Points by Type</h2>
+            <div id="typeReport" class="bar-list type-report"></div>
           </section>
         </div>
       </section>
@@ -323,6 +333,8 @@
       </div>
     </form>
   </dialog>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="assets/js/app.js"></script>
