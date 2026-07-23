@@ -2,13 +2,11 @@ const STORAGE_KEY = "wpmis-js-state";
 
 const seedUsers = [
   { id: "USR-001", name: "County Admin", email: "admin@wajir.go.ke", password: "password", role: "admin" },
-  { id: "USR-002", name: "Field Officer", email: "officer@wajir.go.ke", password: "password", role: "field_officer" },
-  { id: "USR-003", name: "Ahmed Hassan", email: "ahmed.tech@wajir.go.ke", password: "password", role: "technician" },
-  { id: "USR-004", name: "Fatuma Ali", email: "fatuma.tech@wajir.go.ke", password: "password", role: "technician" }
+  { id: "USR-002", name: "Field Officer", email: "officer@wajir.go.ke", password: "password", role: "field_officer" }
 ];
 
 const basePoints = [
-  ["WP-001", "Griftu Central Borehole", "borehole", "Wajir West", "Griftu", 1.6361, 39.6252, 2016, "functional"],
+  ["WP-001", "Wajir Town Central Borehole", "borehole", "Wajir East", "Township", 1.7488, 40.0629, 2006, "functional"],
   ["WP-002", "Bute Community Well", "hand_dug_well", "Wajir North", "Bute", 3.0562, 39.9991, 2011, "functional"],
   ["WP-003", "Habaswein Water Kiosk", "pipeline_kiosk", "Wajir South", "Habaswein", 1.0107, 39.4901, 2018, "under_repair"],
   ["WP-004", "Eldas Livestock Borehole", "borehole", "Eldas", "Eldas", 2.5079, 39.5666, 2013, "non_functional"],
@@ -99,6 +97,26 @@ let markerLayer = null;
 const el = (id) => document.getElementById(id);
 const formatType = (value) => value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 const formatStatus = (value) => ({ functional: "Functional", non_functional: "Non-Functional", under_repair: "Under Repair" }[value] || value);
+
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  el("toastContainer").appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showFormError(id, message) {
+  const target = el(id);
+  target.textContent = message;
+  target.classList.remove("hidden");
+}
+
+function clearFormError(id) {
+  const target = el(id);
+  target.textContent = "";
+  target.classList.add("hidden");
+}
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -248,26 +266,72 @@ function renderTickets() {
 }
 
 function renderReports() {
-  const statusCounts = countBy(state.waterpoints, "status");
-  el("statusReport").innerHTML = Object.entries(statusCounts).map(([status, count]) => `
-    <div class="report-item"><strong>${formatStatus(status)}</strong><p class="muted">${count} water points</p></div>
-  `).join("");
+  renderStatusReport();
+  renderMaintenanceReport();
+  renderBarReport("subCountyReport", countBy(state.waterpoints, "subCounty"));
+  renderBarReport("typeReport", countBy(state.waterpoints, "type"), formatType);
+}
 
+function renderStatusReport() {
+  const statusCounts = countBy(state.waterpoints, "status");
+  const total = state.waterpoints.length;
+  if (!total) {
+    el("statusReport").innerHTML = `<p class="muted">No water points recorded.</p>`;
+    return;
+  }
+  const order = ["functional", "under_repair", "non_functional"];
+  const segments = order.map((status) => ({
+    status,
+    count: statusCounts[status] || 0,
+    pct: Math.round(((statusCounts[status] || 0) / total) * 100)
+  }));
+  const bar = segments.filter((segment) => segment.count > 0).map((segment) => `
+    <div class="status-segment ${segment.status}" style="width:${(segment.count / total) * 100}%" title="${formatStatus(segment.status)}: ${segment.count} (${segment.pct}%)"></div>
+  `).join("");
+  const legend = segments.map((segment) => `
+    <div class="status-legend-item">
+      <span class="status-dot ${segment.status}"></span>
+      ${formatStatus(segment.status)} <strong>${segment.count}</strong> <span class="muted">(${segment.pct}%)</span>
+    </div>
+  `).join("");
+  el("statusReport").innerHTML = `<div class="status-stack">${bar}</div><div class="status-legend">${legend}</div>`;
+}
+
+function renderMaintenanceReport() {
   const open = state.tickets.filter((ticket) => ticket.status !== "Resolved").length;
   const resolved = state.tickets.filter((ticket) => ticket.status === "Resolved").length;
   const high = state.tickets.filter((ticket) => ticket.priority === "High" && ticket.status !== "Resolved").length;
+
+  const total = state.waterpoints.length;
+  const functional = state.waterpoints.filter((point) => point.status === "functional").length;
+  const functionalRate = total ? `${Math.round((functional / total) * 100)}%` : "—";
+
+  const resolvedTickets = state.tickets.filter((ticket) => ticket.status === "Resolved" && ticket.resolvedAt);
+  const avgResolutionDays = resolvedTickets.length
+    ? resolvedTickets.reduce((sum, ticket) => sum + (new Date(ticket.resolvedAt) - new Date(ticket.reportedAt)), 0) / resolvedTickets.length / (1000 * 60 * 60 * 24)
+    : null;
+  const avgResolutionLabel = avgResolutionDays === null ? "—" : `${avgResolutionDays.toFixed(1)} days`;
+
   el("maintenanceReport").innerHTML = [
     ["Open tickets", open],
     ["Resolved tickets", resolved],
-    ["High-priority open tickets", high]
+    ["High-priority open tickets", high],
+    ["Functional rate", functionalRate],
+    ["Avg. resolution time", avgResolutionLabel]
   ].map(([label, value]) => `<div class="report-item"><strong>${value}</strong><p class="muted">${label}</p></div>`).join("");
+}
 
-  const subCountyCounts = countBy(state.waterpoints, "subCounty");
-  const max = Math.max(...Object.values(subCountyCounts));
-  el("subCountyReport").innerHTML = Object.entries(subCountyCounts).sort((a, b) => b[1] - a[1]).map(([name, count]) => `
+function renderBarReport(containerId, counts, formatLabel = (value) => value) {
+  const entries = Object.entries(counts);
+  if (!entries.length) {
+    el(containerId).innerHTML = `<p class="muted">No data available.</p>`;
+    return;
+  }
+  const max = Math.max(...entries.map(([, count]) => count));
+  el(containerId).innerHTML = entries.sort((a, b) => b[1] - a[1]).map(([key, count]) => `
     <div class="bar-row">
-      <div class="bar-label"><strong>${name}</strong><span>${count}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${(count / max) * 100}%"></div></div>
+      <div class="bar-label"><strong>${formatLabel(key)}</strong><span>${count}</span></div>
+      <div class="bar-track" title="${formatLabel(key)}: ${count}"><div class="bar-fill" style="width:${(count / max) * 100}%"></div></div>
     </div>
   `).join("");
 }
@@ -347,8 +411,10 @@ function renderMapMarkers() {
   state.waterpoints
     .filter((point) => !activeStatus || point.status === activeStatus)
     .forEach((point) => {
+      const popupContent = `<strong>${point.name}</strong><br>${point.subCounty} / ${point.ward}<br>${formatType(point.type)}<br><span>${formatStatus(point.status)}</span>`;
       L.marker([point.latitude, point.longitude], { icon: markerIcon(point.status) })
-        .bindPopup(`<strong>${point.name}</strong><br>${point.subCounty} / ${point.ward}<br>${formatType(point.type)}<br><span>${formatStatus(point.status)}</span>`)
+        .bindTooltip(popupContent, { direction: "top", offset: [0, -9] })
+        .bindPopup(popupContent)
         .addTo(markerLayer);
     });
 }
@@ -367,6 +433,7 @@ function openWaterpointForm(pointId = "") {
   el("waterpointStatus").value = point?.status || "functional";
   el("notes").value = point?.notes || "";
   el("waterpointDialog").showModal();
+  el("waterpointName").focus();
 }
 
 function saveWaterpoint(event) {
@@ -394,14 +461,41 @@ function saveWaterpoint(event) {
   saveState();
   el("waterpointDialog").close();
   renderAll();
+  showToast(existingIndex >= 0 ? "Water point updated" : "Water point added");
 }
 
 function deleteWaterpoint(id) {
   if (!requireAdmin()) return;
-  state.waterpoints = state.waterpoints.filter((point) => point.id !== id);
+  const point = getPoint(id);
+  if (!point) return;
+  if (!confirm(`Delete ${point.name}? This will also remove its maintenance tickets. This cannot be undone.`)) return;
+  state.waterpoints = state.waterpoints.filter((item) => item.id !== id);
   state.tickets = state.tickets.filter((ticket) => ticket.waterPointId !== id);
   saveState();
   renderAll();
+  showToast("Water point deleted", "error");
+}
+
+function csvEscape(value) {
+  const text = String(value);
+  return /["\n,]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function exportWaterpointsCSV() {
+  const headers = ["ID", "Name", "Type", "Sub-county", "Ward", "Latitude", "Longitude", "Year Installed", "Status"];
+  const rows = state.waterpoints.map((point) => [
+    point.id, point.name, formatType(point.type), point.subCounty, point.ward,
+    point.latitude, point.longitude, point.yearInstalled, formatStatus(point.status)
+  ].map(csvEscape).join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `wpmis-water-points-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Report exported");
 }
 
 function createTicket(event) {
@@ -424,6 +518,7 @@ function createTicket(event) {
   saveState();
   event.target.reset();
   renderAll();
+  showToast("Maintenance ticket created");
 }
 
 function updateTicket(id, status) {
@@ -437,6 +532,7 @@ function updateTicket(id, status) {
   }
   saveState();
   renderAll();
+  showToast(status === "Resolved" ? "Ticket resolved" : "Ticket marked in progress");
 }
 
 function wireEvents() {
@@ -445,11 +541,12 @@ function wireEvents() {
 
   el("loginForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    clearFormError("loginError");
     const email = el("loginEmail").value.trim().toLowerCase();
     const password = el("loginPassword").value;
     const user = state.users.find((candidate) => candidate.email === email && candidate.password === password);
     if (!user) {
-      alert("Invalid login details.");
+      showFormError("loginError", "Invalid email or password.");
       return;
     }
     startSession(user);
@@ -457,6 +554,7 @@ function wireEvents() {
 
   el("signupForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    clearFormError("signupError");
     const name = el("signupName").value.trim();
     const email = el("signupEmail").value.trim().toLowerCase();
     const role = el("signupRole").value;
@@ -464,12 +562,12 @@ function wireEvents() {
     const confirmPassword = el("signupConfirmPassword").value;
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match.");
+      showFormError("signupError", "Passwords do not match.");
       return;
     }
 
     if (state.users.some((user) => user.email.toLowerCase() === email)) {
-      alert("An account with this email already exists.");
+      showFormError("signupError", "An account with this email already exists.");
       return;
     }
 
@@ -484,6 +582,7 @@ function wireEvents() {
     saveState();
     event.target.reset();
     startSession(user);
+    showToast("Account created — welcome!");
   });
 
   el("logoutButton").addEventListener("click", () => {
@@ -508,11 +607,14 @@ function wireEvents() {
 
   el("waterpointForm").addEventListener("submit", saveWaterpoint);
   el("breakdownForm").addEventListener("submit", createTicket);
+  el("exportReport").addEventListener("click", exportWaterpointsCSV);
   ["globalSearch", "statusFilter", "typeFilter", "subCountyFilter"].forEach((id) => el(id).addEventListener("input", renderAll));
   el("resetDemoData").addEventListener("click", () => {
+    if (!confirm("Reset all data to the demo defaults? Any changes you've made will be lost.")) return;
     localStorage.removeItem(STORAGE_KEY);
     state = loadState();
     renderAll();
+    showToast("Demo data reset");
   });
 
   el("mapFilters").addEventListener("click", (event) => {
