@@ -2,8 +2,7 @@ const STORAGE_KEY = "wpmis-js-state";
 
 const seedUsers = [
   { id: "USR-001", name: "County Admin", email: "admin@wajir.go.ke", password: "password", role: "admin" },
-  { id: "USR-002", name: "Field Officer", email: "officer@wajir.go.ke", password: "password", role: "field_officer" }
-];
+  
 
 const basePoints = [
   ["WP-001", "Wajir Town Central Borehole", "borehole", "Wajir East", "Township", 1.7488, 40.0629, 2006, "functional"],
