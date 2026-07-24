@@ -52,41 +52,6 @@ const seedWaterpoints = basePoints.map(([id, name, type, subCounty, ward, latitu
   createdAt: new Date(Date.UTC(2026, 4, 1 + index)).toISOString()
 }));
 
-const seedTickets = [
-  {
-    id: "MT-001",
-    waterPointId: "WP-003",
-    faultType: "Pump failure",
-    priority: "High",
-    assignedTo: "Ahmed Hassan",
-    description: "Pump handle assembly is broken and water collection has stopped.",
-    status: "Open",
-    reportedAt: "2026-06-21T08:20:00.000Z",
-    resolvedAt: ""
-  },
-  {
-    id: "MT-002",
-    waterPointId: "WP-004",
-    faultType: "Low yield",
-    priority: "Medium",
-    assignedTo: "Fatuma Ali",
-    description: "Community reports the borehole produces very low flow during morning use.",
-    status: "Open",
-    reportedAt: "2026-06-24T10:45:00.000Z",
-    resolvedAt: ""
-  },
-  {
-    id: "MT-003",
-    waterPointId: "WP-007",
-    faultType: "Power issue",
-    priority: "High",
-    assignedTo: "Ahmed Hassan",
-    description: "Solar inverter fault prevents pumping.",
-    status: "In Progress",
-    reportedAt: "2026-06-27T12:05:00.000Z",
-    resolvedAt: ""
-  }
-];
 
 let state = loadState();
 let currentUser = null;
